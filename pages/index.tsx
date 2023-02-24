@@ -24,7 +24,7 @@ const fetchWithTimeout = async (resource: RequestInfo | URL, options: RequestIni
 const fetchPing = async () => {
   const startDate = new Date();
 
-  await fetchWithTimeout('/api/ping', {
+  await fetchWithTimeout('/ping.txt', {
     method: 'GET',
     timeout: 999,
   });
