@@ -60,6 +60,11 @@ export default function Home() {
       } catch (error) {
         setFailed((v) => v + 1);
         setValues((v) => [...v, [format(new Date(), 'HH:mm:ss'), 999]]);
+        setTimeOut(
+          setTimeout(() => {
+            scan();
+          }, 1000),
+        );
       }
     }
   }, [isStarted]);
