@@ -3,7 +3,6 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
 import Head from 'next/head';
-import Script from 'next/script';
 import React, { useRef } from 'react';
 import { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
@@ -16,12 +15,14 @@ export default function Home() {
   const [min, setMin] = useState(0);
   const [max, setMax] = useState(0);
   const [avg, setAvg] = useState(0);
+  const [avgLast, setAvgLast] = useState(0);
 
   useEffect(() => {
     if (values) {
       setMin(values?.length > 0 ? Math.min(...values.map((v) => v[1])) : 0);
       setMax(values?.length > 0 ? Math.max(...values.map((v) => v[1])) : 0);
       setAvg(values.reduce((a, b) => a + b[1], 0) / values?.length || 0);
+      setAvgLast(values.slice(-20).reduce((a, b) => a + b[1], 0) / values?.length || 0);
     }
   }, [values]);
 
@@ -52,13 +53,6 @@ export default function Home() {
         <meta name="description" content="Check Internet Stability" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <Script
-        src="/worker.js"
-        strategy="worker"
-        onLoad={(e) => console.log('onLoad', e)}
-        onReady={() => console.log('onReady')}
-        onError={(e) => console.log('onError', e)}
-      />
       <main className="flex h-screen w-screen items-center justify-center">
         <div className="space-y-5">
           <div>
@@ -126,6 +120,19 @@ export default function Home() {
                   Avg : <b>{Math.round(avg)}</b> ms
                 </p>
               </div>
+
+              <div>
+                <p
+                  className={clsx(
+                    avgLast > 0 && avgLast < 50 && 'text-green-500',
+                    avgLast >= 50 && avgLast < 100 && 'text-yellow-500',
+                    avgLast >= 100 && avgLast < 200 && 'text-orange-500',
+                    avgLast >= 200 && 'text-red-500',
+                  )}
+                >
+                  Avg (Last 20) : <b>{Math.round(avgLast)}</b> ms
+                </p>
+              </div>
             </div>
           </div>
 
@@ -162,7 +169,7 @@ export default function Home() {
                       label: 'latency',
                       data: values.slice(-20).map((v) => v[1]),
                       backgroundColor: values
-                        ?.slice(-10)
+                        ?.slice(-20)
                         .map((v) => v[1])
                         .map((v) => {
                           if (v < 50) {
