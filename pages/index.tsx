@@ -1,88 +1,21 @@
 import { BarElement, CategoryScale, Chart as ChartJS, LinearScale, Title, Tooltip } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { clsx } from 'clsx';
-import { differenceInMilliseconds, format } from 'date-fns';
+import { format } from 'date-fns';
 import Head from 'next/head';
-import React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import Script from 'next/script';
+import React, { useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, ChartDataLabels);
 
-const fetchWithTimeout = async (resource: RequestInfo | URL, options: RequestInit & { timeout: number }) => {
-  const { timeout = 8000 } = options;
-
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  const response = await fetch(resource, {
-    ...options,
-    signal: controller.signal,
-  });
-  clearTimeout(id);
-  return response;
-};
-
-const fetchPing = async () => {
-  const startDate = new Date();
-
-  await fetchWithTimeout('/ping.txt', {
-    method: 'GET',
-    timeout: 999,
-  });
-
-  const endDate = new Date();
-
-  return differenceInMilliseconds(endDate, startDate);
-};
-
 export default function Home() {
-  const [timeout, setTimeOut] = useState<NodeJS.Timeout | undefined>();
-  const [isStarted, setIsStarted] = useState<boolean>(false);
-
   const [values, setValues] = useState<[string, number][]>([]);
   const [sended, setSended] = useState(0);
   const [failed, setFailed] = useState(0);
   const [min, setMin] = useState(0);
   const [max, setMax] = useState(0);
   const [avg, setAvg] = useState(0);
-
-  const scan = useCallback(async () => {
-    if (isStarted) {
-      try {
-        const res = Math.round(await fetchPing());
-
-        setValues((v) => [...v, [format(new Date(), 'HH:mm:ss'), res]]);
-        setSended((v) => v + 1);
-        setTimeOut(
-          setTimeout(() => {
-            scan();
-          }, 1000),
-        );
-      } catch (error) {
-        setFailed((v) => v + 1);
-        setValues((v) => [...v, [format(new Date(), 'HH:mm:ss'), 999]]);
-        setTimeOut(
-          setTimeout(() => {
-            scan();
-          }, 1000),
-        );
-      }
-    }
-  }, [isStarted]);
-
-  useEffect(() => {
-    if (isStarted) {
-      setValues([]);
-      setSended(0);
-      setFailed(0);
-      scan();
-    } else {
-      if (timeout) {
-        clearTimeout(timeout);
-        setTimeOut(undefined);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStarted]);
 
   useEffect(() => {
     if (values) {
@@ -92,6 +25,26 @@ export default function Home() {
     }
   }, [values]);
 
+  const workerRef = useRef<Worker>();
+
+  useEffect(() => {
+    workerRef.current = new Worker(new URL('../public/worker.js', import.meta.url));
+    workerRef.current.onmessage = (event: MessageEvent<[number, number][]>) => {
+      //@ts-ignore
+      setValues((v) => [...v, [format(new Date(event.data[0]), 'HH:mm:ss'), event.data[1]]]);
+
+      //@ts-ignore
+      if (event.data[1] === 999) {
+        setFailed((v) => v + 1);
+      } else {
+        setSended((v) => v + 1);
+      }
+    };
+    return () => {
+      workerRef.current!.terminate();
+    };
+  }, []);
+
   return (
     <>
       <Head>
@@ -99,6 +52,13 @@ export default function Home() {
         <meta name="description" content="Check Internet Stability" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
+      <Script
+        src="/worker.js"
+        strategy="worker"
+        onLoad={(e) => console.log('onLoad', e)}
+        onReady={() => console.log('onReady')}
+        onError={(e) => console.log('onError', e)}
+      />
       <main className="flex h-screen w-screen items-center justify-center">
         <div className="space-y-5">
           <div>
@@ -107,16 +67,9 @@ export default function Home() {
           </div>
 
           <div className="mx-auto text-center">
-            <button
-              className={clsx(
-                'py-2 px-3 font-bold uppercase text-white',
-                !isStarted ? 'bg-green-500' : 'bg-red-500',
-                'rounded-md hover:opacity-60',
-              )}
-              onClick={() => setIsStarted((v) => !v)}
-            >
-              {isStarted ? 'stop' : 'start'}
-            </button>
+            <p>
+              Hosted server based to <b>Paris, France</b>
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -190,6 +143,7 @@ export default function Home() {
                       font: {
                         weight: 'bolder',
                       },
+                      color: 'white',
                     },
                   },
                   scales: {
