@@ -22,7 +22,7 @@ export default function Home() {
       setMin(values?.length > 0 ? Math.min(...values.map((v) => v[1])) : 0);
       setMax(values?.length > 0 ? Math.max(...values.map((v) => v[1])) : 0);
       setAvg(values.reduce((a, b) => a + b[1], 0) / values?.length || 0);
-      setAvgLast(values.slice(-20).reduce((a, b) => a + b[1], 0) / values?.length || 0);
+      setAvgLast(values.slice(-20).reduce((a, b) => a + b[1], 0) / values.slice(-20)?.length || 0);
     }
   }, [values]);
 
