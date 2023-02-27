@@ -7,6 +7,7 @@ const fetchWithTimeout = async (resource, options) => {
   const response = await fetch(resource, {
     ...options,
     signal: controller.signal,
+    cache: "no-store",
   });
   clearTimeout(id);
   return response;
